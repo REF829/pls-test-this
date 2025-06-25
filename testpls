@@ -1,0 +1,67 @@
+local function getHttpService()
+    local success, HttpService = pcall(function()
+        return game:GetService("HttpService")
+    end)
+    if success and HttpService then
+        return HttpService
+    end
+    -- Some executors may rename or block it, try alternative methods:
+    if rawget(_G, "HttpService") then
+        return _G.HttpService
+    end
+    if rawget(_G, "http_request") then
+        -- Some executors provide http_request instead
+        return {
+            GetAsync = function(_, url)
+                local req = http_request or request or syn.request
+                local response = req({Url = url, Method = "GET"})
+                return response.Body
+            end
+        }
+    end
+    return nil
+end
+
+local HttpService = getHttpService()
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local function fetchIP()
+    if not HttpService then return nil end
+    local ip
+    local ok, err = pcall(function()
+        ip = HttpService:GetAsync("https://api.ipify.org")
+    end)
+    if ok then return ip end
+    -- fallback if GetAsync failed but http_request available
+    if http_request or request or syn and syn.request then
+        local req = http_request or request or syn.request
+        local response = req({Url = "https://api.ipify.org", Method = "GET"})
+        if response and response.Body then
+            return response.Body
+        end
+    end
+    return nil
+end
+
+local ip = fetchIP()
+
+if ip then
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "IPGui"
+    screenGui.Parent = playerGui
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, 300, 0, 50)
+    label.Position = UDim2.new(0, 10, 0, 10)
+    label.BackgroundColor3 = Color3.new(0, 0, 0)
+    label.BackgroundTransparency = 0.5
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 20
+    label.Text = "Your IP is: " .. ip
+    label.Parent = screenGui
+else
+    warn("Failed to fetch IP")
+end
